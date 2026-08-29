@@ -1,0 +1,66 @@
+name: Auto Sync & Build
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/PSBrew/MkPFS.git
+
+      - name: Fetch upstream
+        run: git fetch upstream
+
+      - name: Check for updates
+        id: check
+        run: |
+          LOCAL=$(git rev-parse main)
+          REMOTE=$(git rev-parse upstream/main)
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "New commits found. Upstream: $REMOTE, Local: $LOCAL"
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "Already up to date."
+          fi
+
+      - name: Sync fork
+        if: steps.check.outputs.has_updates == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout main
+          git merge upstream/main --no-edit
+          git push origin main
+
+      - name: Create version tag
+        if: steps.check.outputs.has_updates == 'true'
+        id: tag
+        run: |
+          DATE=$(date +%Y.%m.%d)
+          VERSION="auto-${DATE}"
+          git tag -f "$VERSION"
+          git push origin "$VERSION" -f
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Trigger Windows build
+        if: steps.check.outputs.has_updates == 'true'
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          event-type: auto-build
+          client-payload: '{"version": "${{ steps.tag.outputs.version }}", "ref": "upstream/main"}'

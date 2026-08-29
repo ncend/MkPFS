@@ -4,7 +4,10 @@ on:
   push:
     tags:
       - 'v*'
+      - 'auto-*'
   workflow_dispatch:
+  repository_dispatch:
+    types: [auto-build]
 
 permissions:
   contents: write
