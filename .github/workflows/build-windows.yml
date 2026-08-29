@@ -39,7 +39,7 @@ jobs:
 
       - name: Build GUI executable
         run: |
-          uv run pyinstaller mkpfs-gui.spec --log-level=DEBUG
+          uv run pyinstaller ./mkpfs-gui.spec --log-level=DEBUG
 
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v4
