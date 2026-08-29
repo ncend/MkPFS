@@ -39,7 +39,6 @@ jobs:
 
       - name: Build GUI executable
         run: |
-          ls -la
           uv run pyinstaller ./mkpfs-gui.spec --log-level=DEBUG
 
       - name: Upload CLI artifact
